@@ -69,9 +69,10 @@ export default function Dashboard({ setToken }) {
     }
 
     useEffect(() => {
-        axios.get('http://localhost:5000/api/tasks', config)
+        axios.get('/api/tasks', config)
             .then(res => setTasks(res.data))
             .catch(() => {})
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     // Reset to page 1 whenever filters/search change
@@ -84,7 +85,7 @@ export default function Dashboard({ setToken }) {
         const body = { title: title.trim(), priority, categories: selectedCat ? [selectedCat] : [] }
         if (description.trim()) body.description = description.trim()
         if (dueDate) body.dueDate = dueDate
-        const res = await axios.post('http://localhost:5000/api/tasks', body, config)
+        const res = await axios.post('/api/tasks', body, config)
         setTasks([res.data, ...tasks])
         setTitle(''); setDescription(''); setDueDate('')
         setPriority('medium'); setSelectedCat('')
@@ -93,13 +94,13 @@ export default function Dashboard({ setToken }) {
     const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) addTask() }
 
     const toggleComplete = async (task) => {
-        const res = await axios.put(`http://localhost:5000/api/tasks/${task._id}`,
+        const res = await axios.put(`/api/tasks/${task._id}`,
             { completed: !task.completed }, config)
         setTasks(tasks.map(t => t._id === task._id ? res.data : t))
     }
 
     const deleteTask = async (id) => {
-        await axios.delete(`http://localhost:5000/api/tasks/${id}`, config)
+        await axios.delete(`/api/tasks/${id}`, config)
         setTasks(tasks.filter(t => t._id !== id))
     }
 
