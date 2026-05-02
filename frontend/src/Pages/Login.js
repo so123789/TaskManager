@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import axios from 'axios'
+import API from '../api'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import './auth.css'
@@ -19,7 +19,7 @@ export default function Login({ setToken }) {
         setLoading(true)
         setError('')
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/login', form)
+            const res = await API.post('/api/auth/login', form)
             localStorage.setItem('token', res.data.token)
             setPendingToken(res.data.token)
             setShowModal(true)
