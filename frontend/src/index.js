@@ -6,7 +6,7 @@ import reportWebVitals from './reportWebVitals';
 import axios from 'axios';
 
 const isDev = window.location.hostname === 'localhost';
-axios.defaults.baseURL = isDev ? 'http://localhost:5000' : (process.env.REACT_APP_API_URL || 'https://taskmanager-n9cp.onrender.com');
+axios.defaults.baseURL = isDev ? 'http://localhost:5000' : (process.env.REACT_APP_API_URL || 'https://taskmanager-0k0h.onrender.com');
 console.log('API URL:', axios.defaults.baseURL);
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
