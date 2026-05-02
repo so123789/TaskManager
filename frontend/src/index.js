@@ -3,15 +3,7 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
-<<<<<<< HEAD
-=======
-import axios from 'axios';
 
-const isDev = window.location.hostname === 'localhost';
-axios.defaults.baseURL = isDev ? 'http://localhost:5000' : (process.env.REACT_APP_API_URL || 'https://taskmanager-0k0h.onrender.com');
-console.log('API URL:', axios.defaults.baseURL);
-
->>>>>>> 9c20b7c9d543044b921c96b5856950d52f9ba655
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
