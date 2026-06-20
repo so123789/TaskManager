@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import Login from './Pages/Login'
 import Register from './Pages/Register'
+import ForgotPassword from './Pages/ForgotPassword'
+import ResetPassword from './Pages/ResetPassword'
 import Dashboard from './Pages/Dashboard'
 
 function App() {
@@ -14,6 +16,8 @@ function App() {
         <Routes>
           <Route path="/" element={token ? <Navigate to="/dashboard" /> : <Login setToken={setToken} />} />
           <Route path="/register" element={token ? <Navigate to="/dashboard" /> : <Register setToken={setToken} />} />
+          <Route path="/forgot-password" element={token ? <Navigate to="/dashboard" /> : <ForgotPassword />} />
+          <Route path="/reset-password" element={token ? <Navigate to="/dashboard" /> : <ResetPassword />} />
           <Route path="/dashboard" element={token ? <Dashboard setToken={setToken} /> : <Navigate to="/" />} />
         </Routes>
       </BrowserRouter>

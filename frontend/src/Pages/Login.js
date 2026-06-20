@@ -62,6 +62,7 @@ export default function Login({ setToken }) {
                             placeholder="you@example.com"
                             value={form.email}
                             onChange={e => setForm({ ...form, email: e.target.value })}
+                            autoComplete="email"
                             required
                         />
                     </div>
@@ -73,6 +74,7 @@ export default function Login({ setToken }) {
                                 placeholder="••••••••"
                                 value={form.password}
                                 onChange={e => setForm({ ...form, password: e.target.value })}
+                                autoComplete="current-password"
                                 required
                             />
                             <button
@@ -90,10 +92,25 @@ export default function Login({ setToken }) {
                     </button>
                 </form>
 
+                {/* <p className="auth-footer-links">
+                    <Link to="/forgot-password" className="auth-forgot-link">Forgot Password?</Link>
+                </p> */}
+
                 <p className="auth-footer">
                     Don't have an account? <Link to="/register">Register</Link>
                 </p>
             </div>
+
+            {/* Loading Modal */}
+            {loading && !showModal && (
+                <div className="modal-overlay">
+                    <div className="modal-box">
+                        <div className="loading-spinner"></div>
+                        <h2 className="modal-title">Signing you in...</h2>
+                        <p className="modal-message">Verifying your credentials ⏳</p>
+                    </div>
+                </div>
+            )}
 
             {/* Success Modal */}
             {showModal && (

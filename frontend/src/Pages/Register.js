@@ -62,6 +62,7 @@ export default function Register({ setToken }) {
                             placeholder="John Doe"
                             value={form.name}
                             onChange={e => setForm({ ...form, name: e.target.value })}
+                            autoComplete="name"
                             required
                         />
                     </div>
@@ -72,6 +73,7 @@ export default function Register({ setToken }) {
                             placeholder="you@example.com"
                             value={form.email}
                             onChange={e => setForm({ ...form, email: e.target.value })}
+                            autoComplete="email"
                             required
                         />
                     </div>
@@ -82,6 +84,7 @@ export default function Register({ setToken }) {
                                 type={showPassword ? 'text' : 'password'}
                                 placeholder="••••••••"
                                 value={form.password}
+                                autoComplete="new-password"
                                 onChange={e => setForm({ ...form, password: e.target.value })}
                                 required
                             />
@@ -104,6 +107,17 @@ export default function Register({ setToken }) {
                     Already have an account? <Link to="/">Sign in</Link>
                 </p>
             </div>
+
+            {/* Loading Modal */}
+            {loading && !showModal && (
+                <div className="modal-overlay">
+                    <div className="modal-box">
+                        <div className="loading-spinner"></div>
+                        <h2 className="modal-title">Creating your account...</h2>
+                        <p className="modal-message">Setting up your task manager, just a moment ⏳</p>
+                    </div>
+                </div>
+            )}
 
             {/* Success Modal */}
             {showModal && (
