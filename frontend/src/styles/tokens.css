@@ -1,0 +1,134 @@
+/* ─────────────────────────────────────────────────────────────
+   Design tokens. Every colour in the app comes from here so the
+   light and dark themes are designed side by side.
+   ───────────────────────────────────────────────────────────── */
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* Spacing scale (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+
+  /* Type scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-full: 999px;
+
+  --sidebar-width: 248px;
+  --sidebar-collapsed: 68px;
+  --topbar-height: 60px;
+
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --duration: 160ms;
+
+  /* ── Light theme ── */
+  --bg: #f4f5f8;
+  --bg-subtle: #eceef3;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --surface-hover: #f2f3f7;
+  --surface-active: #eaebf2;
+  --border: #e4e6ec;
+  --border-strong: #d3d6df;
+
+  --text: #15171c;
+  --text-secondary: #4a4f5c;
+  --text-muted: #7b8191;
+  --text-faint: #a3a8b5;
+
+  --accent: #5b4fe9;
+  --accent-hover: #4b3fd6;
+  --accent-soft: #eeecfe;
+  --accent-text: #4b3fd6;
+  --on-accent: #ffffff;
+
+  --success: #16a34a;
+  --success-soft: #e8f7ee;
+  --warning: #d97706;
+  --warning-soft: #fdf3e2;
+  --danger: #dc2626;
+  --danger-soft: #fdecec;
+  --info: #2563eb;
+  --info-soft: #e9f0fe;
+
+  /* Task statuses */
+  --status-todo: #8a90a0;
+  --status-progress: #2f6fed;
+  --status-review: #c27c0e;
+  --status-done: #15994a;
+
+  --shadow-sm: 0 1px 2px rgba(16, 19, 30, 0.05);
+  --shadow-md: 0 1px 2px rgba(16, 19, 30, 0.04), 0 4px 12px rgba(16, 19, 30, 0.06);
+  --shadow-lg: 0 8px 28px rgba(16, 19, 30, 0.12), 0 2px 6px rgba(16, 19, 30, 0.06);
+  --overlay: rgba(17, 19, 28, 0.42);
+  --focus-ring: 0 0 0 3px rgba(91, 79, 233, 0.28);
+
+  --skeleton: #eceef3;
+  --skeleton-shine: #f6f7fa;
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #0d0f13;
+  --bg-subtle: #121419;
+  --surface: #15171d;
+  --surface-2: #1a1d24;
+  --surface-hover: #1e2129;
+  --surface-active: #252934;
+  --border: #252830;
+  --border-strong: #333744;
+
+  --text: #ebedf2;
+  --text-secondary: #b8bcc8;
+  --text-muted: #8b90a0;
+  --text-faint: #5f6473;
+
+  --accent: #7b70ff;
+  --accent-hover: #8d84ff;
+  --accent-soft: rgba(123, 112, 255, 0.14);
+  --accent-text: #a49dff;
+  --on-accent: #ffffff;
+
+  --success: #34c76f;
+  --success-soft: rgba(52, 199, 111, 0.13);
+  --warning: #f0a53a;
+  --warning-soft: rgba(240, 165, 58, 0.13);
+  --danger: #f2615c;
+  --danger-soft: rgba(242, 97, 92, 0.13);
+  --info: #5b93ff;
+  --info-soft: rgba(91, 147, 255, 0.13);
+
+  --status-todo: #7c8191;
+  --status-progress: #5b93ff;
+  --status-review: #f0a53a;
+  --status-done: #34c76f;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --overlay: rgba(0, 0, 0, 0.6);
+  --focus-ring: 0 0 0 3px rgba(123, 112, 255, 0.35);
+
+  --skeleton: #1c1f26;
+  --skeleton-shine: #242832;
+
+  color-scheme: dark;
+}

@@ -1,399 +1,232 @@
-import { useState, useEffect, useRef } from 'react'
-import API from '../api'
-import { useNavigate } from 'react-router-dom'
-import { useTheme } from '../context/ThemeContext'
-import './dashboard.css'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import {
+    FolderKanban, Activity, CheckCircle2, CircleDashed, AlertTriangle, Plus, FolderPlus, ArrowRight, PartyPopper,
+} from 'lucide-react'
+import PageHeader from '../components/layout/PageHeader'
+import Button from '../components/ui/Button'
+import { Skeleton, EmptyState, ErrorState, ProgressBar, ProgressRing } from '../components/ui/Feedback'
+import { StatusDot, PriorityIcon } from '../components/ui/Badge'
+import { AvatarGroup } from '../components/ui/Avatar'
+import { WeeklyChart, StatusBreakdown } from '../components/charts/Charts'
+import ProjectCard, { ProjectCardSkeleton } from '../components/projects/ProjectCard'
+import ProjectModal from '../components/projects/ProjectModal'
+import { useDashboard, useProjects, useTasks } from '../hooks/queries'
+import { useAuth } from '../context/AuthContext'
+import { useTaskModal } from '../context/TaskModalContext'
+import { greeting, dueLabel, isOverdue } from '../lib/dates'
+import { cx, plural } from '../lib/utils'
 
-const PRIORITIES = ['low', 'medium', 'high']
-const TASKS_PER_PAGE = 10
-
-const CATEGORIES = [
-    { label: 'Food',      emoji: '🍔' },
-    { label: 'Transport', emoji: '🚗' },
-    { label: 'Household', emoji: '🏠' },
-    { label: 'Shopping',  emoji: '🛒' },
-    { label: 'Health',    emoji: '❤️' },
-    { label: 'Education', emoji: '📚' },
-    { label: 'Other',     emoji: '📌' },
-]
-
-function formatDate(dateStr) {
-    if (!dateStr) return null
-    return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function isOverdue(dateStr, completed) {
-    if (!dateStr || completed) return false
-    return new Date(dateStr) < new Date(new Date().toDateString())
-}
-
-export default function Dashboard({ setToken }) {
-    const { theme, toggleTheme } = useTheme()
-
-    // Task state
-    const [tasks, setTasks]               = useState([])
-    const [expandedTask, setExpandedTask] = useState(null) // task _id whose desc is shown
-
-    // Add-task form state
-    const [title, setTitle]             = useState('')
-    const [description, setDescription] = useState('')
-    const [dueDate, setDueDate]         = useState('')
-    const [priority, setPriority]       = useState('medium')
-    const [selectedCat, setSelectedCat] = useState('')
-
-    // Filter / search / pagination
-    const [search, setSearch]     = useState('')
-    const [filter, setFilter]     = useState('all')
-    const [catFilter, setCatFilter] = useState('')
-    const [catDropOpen, setCatDropOpen] = useState(false)
-    const [page, setPage]         = useState(1)
-
-    const catDropRef = useRef(null)
-    const navigate   = useNavigate()
-    const token      = localStorage.getItem('token')
-    const config     = { headers: { Authorization: `Bearer ${token}` } }
-
-    // Close category dropdown on outside click
-    useEffect(() => {
-        const handler = (e) => {
-            if (catDropRef.current && !catDropRef.current.contains(e.target))
-                setCatDropOpen(false)
-        }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-    }, [])
-
-    const getUserName = () => {
-        try { return JSON.parse(atob(token.split('.')[1])).name || 'there' }
-        catch { return 'there' }
-    }
-
-    useEffect(() => {
-        API.get('/api/tasks', config)
-            .then(res => setTasks(res.data))
-            .catch(() => {})
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
-    // Reset to page 1 whenever filters/search change
-    useEffect(() => { setPage(1) }, [search, filter, catFilter])
-
-    const pickCat = (label) => setSelectedCat(prev => prev === label ? '' : label)
-
-    const addTask = async () => {
-        if (!title.trim()) return
-        const body = { title: title.trim(), priority, categories: selectedCat ? [selectedCat] : [] }
-        if (description.trim()) body.description = description.trim()
-        if (dueDate) body.dueDate = dueDate
-        const res = await API.post('/api/tasks', body, config)
-        setTasks([res.data, ...tasks])
-        setTitle(''); setDescription(''); setDueDate('')
-        setPriority('medium'); setSelectedCat('')
-    }
-
-    const handleKeyDown = (e) => { if (e.key === 'Enter' && !e.shiftKey) addTask() }
-
-    const toggleComplete = async (task) => {
-        const res = await API.put(`/api/tasks/${task._id}`,
-            { completed: !task.completed }, config)
-        setTasks(tasks.map(t => t._id === task._id ? res.data : t))
-    }
-
-    const deleteTask = async (id) => {
-        await API.delete(`/api/tasks/${id}`, config)
-        setTasks(tasks.filter(t => t._id !== id))
-    }
-
-    const logout = () => {
-        localStorage.removeItem('token')
-        setToken(null)
-        navigate('/')
-    }
-
-    // Derived filtered list (before pagination)
-    const filtered = tasks
-        .filter(t => filter === 'pending' ? !t.completed : filter === 'completed' ? t.completed : true)
-        .filter(t => !catFilter || (t.categories && t.categories.includes(catFilter)))
-        .filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
-
-    // Pagination
-    const totalPages  = Math.max(1, Math.ceil(filtered.length / TASKS_PER_PAGE))
-    const paginated   = filtered.slice((page - 1) * TASKS_PER_PAGE, page * TASKS_PER_PAGE)
-
-    const total     = tasks.length
-    const completed = tasks.filter(t => t.completed).length
-    const remaining = total - completed
-
-    // Active category label for dropdown button
-    const activeCat = CATEGORIES.find(c => c.label === catFilter)
-
+function StatCard({ icon: Icon, label, value, hint, tone = 'neutral', loading }) {
     return (
-        <div>
-            {/* ── Header ─────────────────────────────── */}
-            <header className="dash-header">
-                <div className="dash-logo">
-                    <span className="dash-logo-icon">✅</span>
-                    TaskManager
-                </div>
-                <div className="dash-header-right">
-                    <span className="dash-greeting">Hey, {getUserName()} 👋</span>
-                    <button className="theme-toggle" onClick={toggleTheme} title="Toggle theme">
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
-                    <button className="dash-logout-btn" onClick={logout}>Logout</button>
+        <div className={cx('stat-card card', `stat-card--${tone}`)}>
+            <div className="stat-card__top">
+                <span className="stat-card__label">{label}</span>
+                <span className="stat-card__icon"><Icon size={16} aria-hidden="true" /></span>
+            </div>
+            {loading ? <Skeleton width={56} height={30} /> : <div className="stat-card__value tabular">{value}</div>}
+            <div className="stat-card__hint">{loading ? <Skeleton width={90} height={12} /> : hint}</div>
+        </div>
+    )
+}
+
+function Productivity({ data, loading }) {
+    const weekCompleted = data?.weekly.reduce((sum, d) => sum + d.completed, 0) || 0
+    const weekCreated = data?.weekly.reduce((sum, d) => sum + d.created, 0) || 0
+    return (
+        <section className="card dashboard__productivity">
+            <header className="card__header">
+                <div>
+                    <h2 className="card__title">Weekly productivity</h2>
+                    <p className="card__subtitle">Tasks created and completed over the last 7 days</p>
                 </div>
             </header>
-
-            <main className="dash-main">
-                {/* ── Stats ──────────────────────────────── */}
-                <div className="dash-stats">
-                    {[['Total', total], ['Done', completed], ['Left', remaining]].map(([label, val]) => (
-                        <div key={label} className="stat-card">
-                            <div className="stat-value">{val}</div>
-                            <div className="stat-label">{label}</div>
+            <div className="card__body">
+                {loading ? <Skeleton height={190} /> : (
+                    <div className="productivity">
+                        <div className="productivity__summary">
+                            <ProgressRing value={data.tasks.completionRate} size={88} stroke={8}>
+                                <span className="productivity__rate">{data.tasks.completionRate}%</span>
+                            </ProgressRing>
+                            <dl className="productivity__figures">
+                                <div><dt>Completed</dt><dd className="tabular">{data.tasks.completed}</dd></div>
+                                <div><dt>Remaining</dt><dd className="tabular">{data.tasks.pending}</dd></div>
+                                <div><dt>This week</dt><dd className="tabular">{weekCompleted} <span>done</span> · {weekCreated} <span>new</span></dd></div>
+                            </dl>
                         </div>
-                    ))}
-                </div>
-
-                {/* ── Add Task ───────────────────────────── */}
-                <div className="dash-add-card">
-                    <p className="dash-add-title">➕ New Task</p>
-                    <div className="dash-add-row">
-                        <input
-                            className="dash-input"
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            placeholder="What needs to be done?"
-                        />
-                        <button className="dash-add-btn" onClick={addTask}>Add Task</button>
+                        <WeeklyChart data={data.weekly} />
                     </div>
+                )}
+            </div>
+        </section>
+    )
+}
 
-                    {/* Description */}
-                    <textarea
-                        className="dash-desc-input"
-                        value={description}
-                        onChange={e => setDescription(e.target.value)}
-                        placeholder="Add more details about this task (optional)…"
-                        rows={2}
-                    />
-
-                    {/* Due date + Priority */}
-                    <div className="dash-add-meta">
-                        <div className="dash-meta-field">
-                            <label className="dash-meta-label">📅 Due Date</label>
-                            <input
-                                type="date"
-                                className="dash-date-input"
-                                value={dueDate}
-                                onChange={e => setDueDate(e.target.value)}
-                                onClick={(e) => e.target.showPicker && e.target.showPicker()}
-                            />
-                        </div>
-                        <div className="dash-meta-field">
-                            <label className="dash-meta-label">🚦 Priority</label>
-                            <div className="dash-priority-group">
-                                {PRIORITIES.map(p => (
-                                    <button key={p} type="button"
-                                        className={`dash-priority-pick priority-pick-${p} ${priority === p ? 'selected' : ''}`}
-                                        onClick={() => setPriority(p)}>{p}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Categories picker — single choice */}
-                    <div className="dash-meta-field" style={{ marginTop: '0.85rem' }}>
-                        <label className="dash-meta-label">🏷️ Category <span style={{ opacity: 0.5, textTransform: 'none', fontSize: '0.75rem' }}>(optional)</span></label>
-                        <div className="dash-cat-picker">
-                            {CATEGORIES.map(({ label, emoji }) => (
-                                <button key={label} type="button"
-                                    className={`dash-cat-chip ${selectedCat === label ? 'active' : ''}`}
-                                    onClick={() => pickCat(label)}>
-                                    {emoji} {label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Toolbar: Search + Status filters + Category dropdown ─── */}
-                <div className="dash-toolbar">
-                    <div className="dash-toolbar-row">
-                        {/* Search */}
-                        <div className="dash-search-wrap" style={{ flex: 1 }}>
-                            <span className="dash-search-icon">🔍</span>
-                            <input className="dash-search" value={search}
-                                onChange={e => setSearch(e.target.value)} placeholder="Search tasks…" />
-                            {search && <button className="dash-search-clear" onClick={() => setSearch('')}>✕</button>}
-                        </div>
-
-                        {/* Category dropdown */}
-                        <div className="dash-cat-dropdown" ref={catDropRef}>
-                            <button
-                                className={`dash-cat-drop-btn ${catFilter ? 'active' : ''}`}
-                                onClick={() => setCatDropOpen(p => !p)}
-                            >
-                                {activeCat ? `${activeCat.emoji} ${activeCat.label}` : '🏷️ Category'}
-                                <span className="dash-drop-arrow">{catDropOpen ? '▴' : '▾'}</span>
-                            </button>
-                            {catDropOpen && (
-                                <div className="dash-cat-drop-menu">
-                                    <button className={`dash-drop-item ${!catFilter ? 'active' : ''}`}
-                                        onClick={() => { setCatFilter(''); setCatDropOpen(false) }}>
-                                        🗂️ All Categories
-                                    </button>
-                                    {CATEGORIES.map(({ label, emoji }) => (
-                                        <button key={label}
-                                            className={`dash-drop-item ${catFilter === label ? 'active' : ''}`}
-                                            onClick={() => { setCatFilter(label); setCatDropOpen(false) }}>
-                                            {emoji} {label}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Status filters */}
-                    <div className="dash-filters">
-                        {['all', 'pending', 'completed'].map(f => (
-                            <button key={f}
-                                className={`dash-filter-btn ${filter === f ? 'active' : ''}`}
-                                onClick={() => setFilter(f)}>
-                                {f === 'all' ? '☰ All' : f === 'pending' ? '⏳ Pending' : '✅ Done'}
-                                <span className="dash-filter-count">
-                                    {f === 'all' ? total : f === 'pending' ? remaining : completed}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* ── Section header ─────────────────────── */}
-                <div className="dash-section-header">
-                    <span className="dash-section-title">📋 Tasks
-                        {filtered.length > 0 && <span className="dash-result-count"> ({filtered.length})</span>}
-                    </span>
-                    {totalPages > 1 && (
-                        <span className="dash-page-info">Page {page} of {totalPages}</span>
-                    )}
-                </div>
-
-                {/* ── Task list ──────────────────────────── */}
-                {paginated.length === 0 ? (
-                    <div className="dash-empty">
-                        <span className="dash-empty-icon">{search ? '🔍' : filter !== 'all' ? '🎯' : '🗂️'}</span>
-                        <p className="dash-empty-text">
-                            {search ? `No tasks match "${search}"` :
-                             filter === 'pending' ? 'No pending tasks' :
-                             filter === 'completed' ? 'No completed tasks yet' :
-                             catFilter ? `No tasks in ${catFilter}` : 'No tasks yet'}
-                        </p>
-                        {!search && filter === 'all' && !catFilter &&
-                            <p className="dash-empty-sub">Add your first task above to get started</p>}
-                    </div>
-                ) : (
-                    <div className="dash-task-list">
-                        {paginated.map(task => {
-                            const overdue    = isOverdue(task.dueDate, task.completed)
-                            const expanded   = expandedTask === task._id
-                            const hasDesc    = task.description && task.description.trim()
-                            const hasCats    = task.categories?.length > 0
-                            const hasDetails = hasDesc || hasCats
-                            return (
-                                <div key={task._id}
-                                    className={`task-card ${task.completed ? 'completed' : ''} ${overdue ? 'overdue' : ''}`}>
-                                    <input type="checkbox" className="task-checkbox"
-                                        checked={task.completed} onChange={() => toggleComplete(task)} />
-
-                                    <div className="task-body">
-                                        <div className="task-title-row">
-                                            <span className={`task-title ${task.completed ? 'done' : ''}`}>
-                                                {task.title}
-                                            </span>
-                                            {hasDetails && (
-                                                <button
-                                                    className={`task-desc-toggle ${expanded ? 'open' : ''}`}
-                                                    onClick={() => setExpandedTask(expanded ? null : task._id)}
-                                                    title={expanded ? 'Collapse' : 'Show details'}
-                                                >
-                                                    {expanded ? '▴' : '▾'}
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Expanded: description + category shown together */}
-                                        {expanded && hasDetails && (
-                                            <div className="task-expanded">
-                                                {hasDesc && (
-                                                    <p className="task-description">{task.description}</p>
-                                                )}
-                                                {hasCats && (
-                                                    <div className="task-cats">
-                                                        {task.categories.map(cat => {
-                                                            const found = CATEGORIES.find(c => c.label === cat)
-                                                            return (
-                                                                <span key={cat} className="task-cat-tag">
-                                                                    {found?.emoji ?? '🏷️'} {cat}
-                                                                </span>
-                                                            )
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {/* Always-visible: due date only */}
-                                        {task.dueDate && (
-                                            <span className={`task-due ${overdue ? 'task-due-overdue' : ''}`}>
-                                                {overdue ? '🔴' : '📅'} {formatDate(task.dueDate)}
-                                                {overdue && ' · Overdue'}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {task.priority && (
-                                        <span className={`task-priority priority-${task.priority}`}>
-                                            {task.priority}
+function ProjectProgress({ projects, loading }) {
+    const active = projects.filter(p => p.status !== 'completed').slice(0, 5)
+    return (
+        <section className="card">
+            <header className="card__header">
+                <h2 className="card__title">Project progress</h2>
+                <Link to="/projects" className="text-btn">All projects</Link>
+            </header>
+            <div className="card__body">
+                {loading ? <Skeleton height={140} /> : active.length ? (
+                    <ul className="progress-list">
+                        {active.map(p => (
+                            <li key={p._id}>
+                                <Link to={`/projects/${p._id}`} className="progress-list__item">
+                                    <div className="progress-list__row">
+                                        <span className="progress-list__name">
+                                            <span className="project-swatch" style={{ background: p.color }} />
+                                            <span className="truncate">{p.name}</span>
                                         </span>
-                                    )}
-                                    <button className="task-delete-btn" onClick={() => deleteTask(task._id)} title="Delete">🗑</button>
-                                </div>
-                            )
-                        })}
-                    </div>
-                )}
+                                        <span className="progress-list__value tabular">{p.progress}%</span>
+                                    </div>
+                                    <ProgressBar value={p.progress} color={p.color} size="sm" label={`${p.name} progress`} />
+                                    <span className="progress-list__meta">{p.completedCount} of {plural(p.taskCount, 'task')} done</span>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
+                ) : <EmptyState compact icon={FolderKanban} title="No active projects" description="Active projects and their progress appear here." />}
+            </div>
+        </section>
+    )
+}
 
-                {/* ── Pagination ─────────────────────────── */}
-                {totalPages > 1 && (
-                    <div className="dash-pagination">
-                        <button
-                            className="dash-page-btn"
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                        >
-                            ← Previous
-                        </button>
-                        <div className="dash-page-dots">
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
-                                <button key={n}
-                                    className={`dash-page-dot ${n === page ? 'active' : ''}`}
-                                    onClick={() => setPage(n)}
-                                >{n}</button>
-                            ))}
-                        </div>
-                        <button
-                            className="dash-page-btn"
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                            disabled={page === totalPages}
-                        >
-                            Next →
-                        </button>
+function UpcomingDeadlines() {
+    const { openTask } = useTaskModal()
+    const overdue = useTasks({ due: 'overdue', sort: 'dueDate', limit: 5 })
+    const upcoming = useTasks({ due: 'week', status: 'todo,in_progress,in_review', sort: 'dueDate', limit: 8 })
+    const loading = overdue.isLoading || upcoming.isLoading
+    const items = [...(overdue.data || []), ...(upcoming.data || [])].slice(0, 8)
+
+    return (
+        <section className="card">
+            <header className="card__header">
+                <h2 className="card__title">Upcoming deadlines</h2>
+                <Link to="/calendar" className="text-btn">Calendar</Link>
+            </header>
+            <div className="card__body">
+                {loading ? <Skeleton height={140} /> : overdue.isError || upcoming.isError ? (
+                    <ErrorState compact error={overdue.error || upcoming.error} onRetry={() => { overdue.refetch(); upcoming.refetch() }} />
+                ) : items.length ? (
+                    <ul className="deadline-list">
+                        {items.map(t => (
+                            <li key={t._id}>
+                                <button className="deadline-item" onClick={() => openTask(t._id)}>
+                                    <StatusDot status={t.status} />
+                                    <span className="deadline-item__text">
+                                        <span className="deadline-item__title truncate">{t.title}</span>
+                                        {t.project && <span className="deadline-item__project truncate">{t.project.name}</span>}
+                                    </span>
+                                    <AvatarGroup users={t.assignees} size={20} max={2} />
+                                    <PriorityIcon priority={t.priority} />
+                                    <span className={cx('deadline-item__due', isOverdue(t) && 'is-overdue')}>{dueLabel(t.dueDate)}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                ) : <EmptyState compact icon={PartyPopper} title="Nothing due this week" description="Enjoy the breathing room, or plan what's next." />}
+            </div>
+        </section>
+    )
+}
+
+export default function Dashboard() {
+    const { user } = useAuth()
+    const { createTask } = useTaskModal()
+    const [creatingProject, setCreatingProject] = useState(false)
+    const dashboard = useDashboard()
+    const projectsQuery = useProjects()
+    const d = dashboard.data
+    const loading = dashboard.isLoading
+    const projects = projectsQuery.data || []
+    const firstName = user?.name?.split(' ')[0]
+
+    const subtitle = d
+        ? d.tasks.dueToday
+            ? `You have ${plural(d.tasks.dueToday, 'task')} due today.`
+            : d.tasks.overdue ? `${plural(d.tasks.overdue, 'task')} need attention.` : "You're all caught up for today."
+        : new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+
+    return (
+        <div className="dashboard">
+            <PageHeader
+                title={`${greeting()}${firstName ? `, ${firstName}` : ''}`}
+                description={subtitle}
+                actions={(
+                    <>
+                        <Button icon={FolderPlus} onClick={() => setCreatingProject(true)}>New project</Button>
+                        <Button variant="primary" icon={Plus} onClick={() => createTask()}>New task</Button>
+                    </>
+                )}
+            />
+
+            {dashboard.isError ? (
+                <div className="card"><ErrorState error={dashboard.error} title="Couldn't load your dashboard" onRetry={dashboard.refetch} /></div>
+            ) : (
+                <>
+                    <div className="stat-grid">
+                        <StatCard icon={FolderKanban} label="Total projects" loading={loading} value={d?.projects.total}
+                            hint={d && `${d.projects.completed} completed`} />
+                        <StatCard icon={Activity} label="Active projects" tone="accent" loading={loading} value={d?.projects.active}
+                            hint={d && (d.projects.byStatus.on_hold ? `${d.projects.byStatus.on_hold} on hold` : 'In progress now')} />
+                        <StatCard icon={CheckCircle2} label="Completed tasks" tone="success" loading={loading} value={d?.tasks.completed}
+                            hint={d && `${d.tasks.completionRate}% completion rate`} />
+                        <StatCard icon={CircleDashed} label="Pending tasks" tone="info" loading={loading} value={d?.tasks.pending}
+                            hint={d && `${d.tasks.dueThisWeek} due in the next 7 days`} />
+                        <StatCard icon={AlertTriangle} label="Overdue tasks" tone={d?.tasks.overdue ? 'danger' : 'neutral'} loading={loading} value={d?.tasks.overdue}
+                            hint={d && (d.tasks.overdue ? 'Past their due date' : 'Nothing overdue')} />
+                    </div>
+
+                    <div className="dashboard__row">
+                        <Productivity data={d} loading={loading} />
+                        <section className="card">
+                            <header className="card__header">
+                                <div>
+                                    <h2 className="card__title">Task status</h2>
+                                    <p className="card__subtitle">{d ? plural(d.tasks.total, 'task') : '…'} across your workspace</p>
+                                </div>
+                            </header>
+                            <div className="card__body">
+                                {loading ? <Skeleton height={150} /> : <StatusBreakdown counts={d.byStatus} />}
+                            </div>
+                        </section>
+                    </div>
+                </>
+            )}
+
+            <section className="dashboard__projects">
+                <div className="section-header">
+                    <h2>Recent projects</h2>
+                    {projects.length > 0 && <Link to="/projects" className="text-btn">View all <ArrowRight size={14} /></Link>}
+                </div>
+                {projectsQuery.isError ? (
+                    <div className="card"><ErrorState compact error={projectsQuery.error} onRetry={projectsQuery.refetch} /></div>
+                ) : projectsQuery.isLoading ? (
+                    <div className="project-grid">{[1, 2, 3].map(i => <ProjectCardSkeleton key={i} />)}</div>
+                ) : projects.length ? (
+                    <div className="project-grid">{projects.slice(0, 3).map(p => <ProjectCard key={p._id} project={p} />)}</div>
+                ) : (
+                    <div className="card">
+                        <EmptyState
+                            icon={FolderKanban}
+                            title="No projects yet"
+                            description="Create your first project to get started."
+                            action={<Button variant="primary" icon={FolderPlus} onClick={() => setCreatingProject(true)}>Create project</Button>}
+                        />
                     </div>
                 )}
-            </main>
+            </section>
+
+            <div className="dashboard__row dashboard__row--even">
+                <ProjectProgress projects={projects} loading={projectsQuery.isLoading} />
+                <UpcomingDeadlines />
+            </div>
+
+            <ProjectModal open={creatingProject} onClose={() => setCreatingProject(false)} />
         </div>
     )
 }
